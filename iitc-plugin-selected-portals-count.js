@@ -9,8 +9,6 @@
 // @match          https://www.ingress.com/intel*
 // @match          http://www.ingress.com/intel*
 // @grant          none
-// @downloadURL https://userscripts.enl.one/script/download/de5bd0001b540ee6040b08e581ce6c77012cfb8d/cf62be87de868cb3d9440770f84ff9f6.user.js
-// @updateURL https://userscripts.enl.one/script/download/de5bd0001b540ee6040b08e581ce6c77012cfb8d/cf62be87de868cb3d9440770f84ff9f6.meta.js
 // ==/UserScript==
 
 
