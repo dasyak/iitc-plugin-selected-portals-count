@@ -4,10 +4,12 @@
 // @category       Info
 // @version        0.1.1.20161010
 // @description    modified portal counts script, counts only portals within polygons
-// @include        https://www.ingress.com/intel*
-// @include        http://www.ingress.com/intel*
-// @match          https://www.ingress.com/intel*
-// @match          http://www.ingress.com/intel*
+// @include        *://*.ingress.com/intel*
+// @include        *://*.ingress.com/mission/*
+// @include        *://intel.ingress.com/*
+// @match          *://*.ingress.com/intel*
+// @match          *://*.ingress.com/mission/*
+// @match          *://intel.ingress.com/*
 // @grant          none
 // ==/UserScript==
 
