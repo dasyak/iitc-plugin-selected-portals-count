@@ -2,12 +2,10 @@
 // @id             iitc-plugin-selected-portals-count@dasyak
 // @name           IITC plugin: Show counts of selected portals
 // @category       Info
-// @version        0.1.2.20181021
+// @version        0.1.3.20210304
 // @description    modified portal counts script, counts only portals within polygons
-// @include        *://*.ingress.com/intel*
 // @include        *://*.ingress.com/mission/*
 // @include        *://intel.ingress.com/*
-// @match          *://*.ingress.com/intel*
 // @match          *://*.ingress.com/mission/*
 // @match          *://intel.ingress.com/*
 // @grant          none
