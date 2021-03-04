@@ -2,7 +2,7 @@
 // @id             iitc-plugin-selected-portals-count@dasyak
 // @name           IITC plugin: Show counts of selected portals
 // @category       Info
-// @version        0.1.3.20210304
+// @version        0.2.0.20210304
 // @description    modified portal counts script, counts only portals within polygons
 // @include        *://*.ingress.com/mission/*
 // @include        *://intel.ingress.com/*
@@ -11,12 +11,60 @@
 // @grant          none
 // ==/UserScript==
 
+// 0.2.0 - added support for L.Circle and L.GeodesicCircle by @perringaiden
 
 function wrapper(plugin_info) {
     // ensure plugin framework is there, even if iitc is not yet loaded
     if(typeof window.plugin !== 'function') window.plugin = function() {};
 
     window.plugin.polygonCrossLinks = function() {};
+
+    // use own namespace for plugin
+    window.plugin.selectedportalcounts = {
+        BAR_TOP: 20,
+        BAR_HEIGHT: 180,
+        BAR_WIDTH: 25,
+        BAR_PADDING: 5,
+        RADIUS_INNER: 70,
+        RADIUS_OUTER: 100,
+        CENTER_X: 200,
+        CENTER_Y: 100,
+    };
+
+
+
+    window.plugin.selectedportalcounts.getDistanceFromLatLonInMeters = function(lat1,lon1,lat2,lon2) {
+        var R = 6371; // Radius of the earth in km
+        var dLat = window.plugin.selectedportalcounts.deg2rad(lat2-lat1);  // deg2rad below
+        var dLon = window.plugin.selectedportalcounts.deg2rad(lon2-lon1);
+        var a =
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(window.plugin.selectedportalcounts.deg2rad(lat1)) * Math.cos(window.plugin.selectedportalcounts.deg2rad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2)
+        ;
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        var d = R * c * 1000; // Distance in km
+        return d;
+    }
+
+    window.plugin.selectedportalcounts.deg2rad = function(deg) {
+        return deg * (Math.PI/180)
+    }
+
+    window.plugin.selectedportalcounts.pointInCircle = function(targetX, targetY, circle) {
+        // d=(x2−x1)2+(y2−y1)2−−−−−−−−−−−−−−−−−−√
+        var center = circle.getLatLng();
+        var radius = circle.getRadius();
+
+        var distance = window.plugin.selectedportalcounts.getDistanceFromLatLonInMeters(targetX, targetY, center.lat,center.lng);
+
+        if (distance < radius) {
+            return true;
+        } else {
+            return false;
+        };
+    }
+
 
 
     /**
@@ -38,10 +86,14 @@ function wrapper(plugin_info) {
  * 	targetY - longtitude (long) of our point of interest 
  *
  */
+
+
+
     window.plugin.polygonCrossLinks.pointInPolygon = function(targetX, targetY, polygon) {
 
         var tempX;
         var tempY;
+        var i = 0;
 
         /* How many times the ray crosses a line-segment */
         var crossings = 0;
@@ -51,13 +103,13 @@ function wrapper(plugin_info) {
         var polyLatLngs = polygon.getLatLngs();
         var polygonX = [];
         var polygonY = [];
-        for ( var i = 0; i < polyLatLngs.length; i++) {
+        for (i = 0; i < polyLatLngs.length; i++) {
             polygonX[i] = polyLatLngs[i].lat;
             polygonY[i] = polyLatLngs[i].lng;
         }
 
         /* Iterate through each line */
-        for ( var i = 0; i < polygonX.length; i++) {
+        for (i = 0; i < polygonX.length; i++) {
             //This is done to ensure that we get the same result when the line goes from left to right and right to left
             if( polygonX[i] < polygonX[(i + 1) % polygonX.length]) {
                 tempX = polygonX[i];
@@ -123,18 +175,6 @@ function wrapper(plugin_info) {
 * 0.0.1  : initial release, show count of portals
 */
 
-    // use own namespace for plugin
-    window.plugin.selectedportalcounts = {
-        BAR_TOP: 20,
-        BAR_HEIGHT: 180,
-        BAR_WIDTH: 25,
-        BAR_PADDING: 5,
-        RADIUS_INNER: 70,
-        RADIUS_OUTER: 100,
-        CENTER_X: 200,
-        CENTER_Y: 100,
-    };
-
     //count portals for each level available on the map
     window.plugin.selectedportalcounts.getPortals = function (){
         //console.log('** getPortals');
@@ -158,15 +198,21 @@ function wrapper(plugin_info) {
             // just count portals within drawn polygons
             var countbool = false;
 
-            for (var i in plugin.drawTools.drawnItems._layers) { // leaflet don't support breaking out of the loop
-                var layer = plugin.drawTools.drawnItems._layers[i];
+            debugger;
+            for (var index in plugin.drawTools.drawnItems._layers) { // leaflet don't support breaking out of the loop
+                var layer = plugin.drawTools.drawnItems._layers[index];
                 if (layer instanceof L.GeodesicPolygon) {
                     if (window.plugin.polygonCrossLinks.pointInPolygon(portal.getLatLng().lat, portal.getLatLng().lng, layer)) {
                         countbool = true;
                         break;
                     }
-                }
-            }
+                } else if (layer instanceof L.Circle || layer instanceof L.GeodesicCircle) {
+                    if (window.plugin.selectedportalcounts.pointInCircle(portal.getLatLng().lat, portal.getLatLng().lng, layer)) {
+                        countbool = true;
+                        break;
+                    };
+                };
+            };
 
             // just count portals in viewport
             //if(!displayBounds.contains(portal.getLatLng())) return true;
@@ -189,7 +235,7 @@ function wrapper(plugin_info) {
         });
 
         //get portals informations from IITC
-        var minlvl = getMinPortalLevel();
+        var minlvl = 0;
         var total = self.neuP + self.enlP + self.resP;
 
         var counts = '';
@@ -289,12 +335,6 @@ function wrapper(plugin_info) {
             counts += $('<div>').append(svg).html();
         } else {
             counts += '<p>No Portals in range!</p>';
-        }
-
-        // I've only seen the backend reduce the portals returned for L4+ or further out zoom levels - but this could change
-        // UPDATE: now seen for L2+ in dense areas (map zoom level 14 or lower)
-        if (getMinPortalLevel() >= 2) {
-            counts += '<p class="help" title="To reduce data usage and speed up map display, the backend servers only return some portals in dense areas."><b>Warning</b>: Portal counts can be inaccurate when zoomed out</p>';
         }
 
         var total = self.enlP + self.resP + self.neuP;
@@ -440,14 +480,14 @@ function wrapper(plugin_info) {
             window.plugin.selectedportalcounts.getPortals();
         else
             $('#portalcounts').remove()
-            };
+    };
 
     var setup =  function() {
         if (window.plugin.drawTools === undefined) {
             alert("'Polygon Cross-Links' requires 'draw-tools'");
             return;
         }
-        
+
         if(window.useAndroidPanes()) {
             android.addPane('plugin-portalcounts', 'Selected Portal counts', 'ic_action_data_usage');
             addHook('paneChanged', window.plugin.selectedportalcounts.onPaneChanged);
@@ -477,7 +517,7 @@ function wrapper(plugin_info) {
                          '</style>');
     };
 
-   
+
     // PLUGIN END //////////////////////////////////////////////////////////
 
 
@@ -493,4 +533,3 @@ var info = {};
 if (typeof GM_info !== 'undefined' && GM_info && GM_info.script) info.script = { version: GM_info.script.version, name: GM_info.script.name, description: GM_info.script.description };
 script.appendChild(document.createTextNode('('+ wrapper +')('+JSON.stringify(info)+');'));
 (document.body || document.head || document.documentElement).appendChild(script);
-
